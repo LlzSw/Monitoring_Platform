@@ -1,0 +1,690 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AOA-AGS污水处理智能控制系统</title>
+    <script src="https://cdn.jsdelivr.net/npm/echarts@5.5.0/dist/echarts.min.js"></script>
+    <style>
+        /* 基础重置与全局样式 */
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            background-color: #030d1a; /* 深蓝背景 */
+            color: #fff;
+            font-family: 'Microsoft YaHei', sans-serif;
+            
+            width: 100vw;
+            min-height: 100vh;
+            height: auto;
+            overflow-x: hidden; 
+            overflow-y: auto;
+            /* --- 补充部分：增加网页最外圈的留白 --- */
+            padding: 15px; 
+            display: flex;
+            flex-direction: column;
+            padding-bottom: 5px;
+        }
+
+        /* 顶部标题栏 */
+        header {
+            flex-shrink: 0; /* 确保头部不被压缩 */
+            margin-bottom: 10px; /* 头部和下方导航的间距 */
+            height: 80px;
+            background: linear-gradient(to bottom, rgba(0, 255, 255, 0.1), transparent);
+            border-bottom: 2px solid #0a4b6d;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 0 20px;
+        }
+        .header-title {
+            font-size: 28px;
+            font-weight: bold;
+            color: #00ffff;
+            text-shadow: 0 0 10px #00ffff;
+            letter-spacing: 2px;
+            text-align: center;
+            flex-grow: 1;
+        }
+        .header-info { font-size: 14px; color: #6db1c7; }
+
+        /* 导航栏 (示意) */
+        nav {
+            display: flex;
+            justify-content: center;
+            gap: 15px;
+            padding: 10px 0;
+            background-color: rgba(3, 13, 26, 0.8);
+        }
+        nav div {
+            padding: 5px 20px;
+            background-color: #062a42;
+            border: 1px solid #0a4b6d;
+            border-radius: 15px;
+            cursor: pointer;
+            font-size: 14px;
+        }
+        nav div.active {
+            background-color: #0a4b6d;
+            border-color: #00ffff;
+            color: #00ffff;
+        }
+
+        /* 主体网格布局 (左、中、右) */
+        .main-container {
+            display: grid;
+            grid-template-columns: 1fr 2fr 1fr;
+            /* --- 补充部分：增加列与列、行与行之间的间距 --- */
+            gap: 20px; 
+            padding: 5px 0; /* 上下微调 */
+
+            flex: none; 
+            margin-bottom: 20px;
+            width: 100%
+        }
+
+        /* 统一的面板样式 (带科技感边框) */
+        .panel {
+            background-color: rgba(6, 42, 66, 0.4);
+            border: 1px solid #0a4b6d;
+            border-radius: 5px;
+            position: relative;
+            padding: 15px;
+            display: flex;
+            flex-direction: column;
+            box-shadow: inset 0 0 20px rgba(0, 255, 255, 0.1); /* 增加一点内发光提升质感 */
+            min-height: 200px;
+        }
+        /* 四角的高亮边框特效 */
+        .panel::before, .panel::after {
+            content: '';
+            position: absolute;
+            width: 10px; height: 10px;
+            border: 2px solid #00ffff;
+            transition: all 0.3s;
+        }
+        .panel::before { top: -1px; left: -1px; border-right: none; border-bottom: none; }
+        .panel::after { bottom: -1px; right: -1px; border-left: none; border-top: none; }
+        
+        .panel-title {
+            font-size: 16px;
+            color: #00ffff;
+            margin-bottom: 10px;
+            display: flex;
+            align-items: center;
+        }
+        .panel-title::before {
+            content: '◆'; margin-right: 5px; color: #ffeb3b; font-size: 12px;
+        }
+
+        /* 内部区域划分 */
+        .left-col, .right-col { display: grid; grid-template-rows: repeat(3, 250px); gap: 15px; }
+        .center-col { display: grid; grid-template-rows: 450px 300px; gap: 15px; }
+
+        /* 图表容器 */
+        .chart-box { flex-grow: 1; width: 100%; height: 100%; }
+
+        /* 表格样式 (用于辅助决策) */
+        table { width: 100%; border-collapse: collapse; text-align: center; font-size: 12px;}
+        th { color: #00ffff; padding: 5px; border-bottom: 1px solid #0a4b6d;}
+        td { padding: 5px; color: #e0e0e0; }
+
+        /* 自定义滚动条样式 */
+        body::-webkit-scrollbar {
+        width: 8px;
+        }
+        body::-webkit-scrollbar-thumb {
+        background: #0a4b6d;
+        border-radius: 10px;
+        }
+        body::-webkit-scrollbar-track {
+        background: #030d1a;
+        }
+
+    </style>
+</head>
+<body>
+
+    <header>
+        <div class="header-info">长沙市岳麓区污水处理厂中试工程</div>
+        <div class="header-title">AOA-AGS污水处理智能控制系统</div>
+        <div class="header-info" id="current-time">星期三 2026-04-08 19:27:45</div>
+    </header>
+
+    <nav>
+        <div class="active">主页面</div>
+        <div>进水水质</div>
+        <div>辅助决策</div>
+        <div>各池末端水质预测</div>
+        <div>污泥性质预测</div>
+        <div>长期运行趋势</div>
+        <div>建议调整参数</div>
+        <div>数据管理</div>
+        <div>后管系统</div>
+    </nav>
+
+    <div class="main-container">
+        
+        <div class="left-col">
+            <div class="panel">
+                <div class="panel-title">进水水质</div>
+                <div class="chart-box" id="chart-influent-quanlity"></div>
+            </div>
+            <div class="panel">
+                <div class="panel-title">水质预测-TN</div>
+                <div class="chart-box" id="chart-shortterm-TN"></div>
+            </div>
+            <div class="panel">
+                <div class="panel-title">水质预测-TP</div>
+                <div class="chart-box" id="chart-shortterm-TP"></div>
+            </div>
+        </div>
+
+        <div class="center-col">
+            <div class="panel">
+                <div style="text-align:center; color:#00ffff; font-size: 18px;">工程概况</div>
+                <div style="display:flex; justify-content:center; align-items:center; height:400px; border: 1px dashed #0a4b6d;">
+                   
+                <img src="structu.png" alt="工程示意图" style="max-width:100%; max-height:100%; object-fit: contain; border-radius: 4px;">
+
+                </div>
+            </div>
+            <div class="panel">
+                <div class="panel-title">各池末端水质预测</div>
+                <div style="display: flex; width: 100%; flex-grow: 1; gap: 10px;">
+                    <div class="chart-box" id="chart-effluent-TN-quanlity" style="flex: 1;"></div>
+                    <div class="chart-box" id="chart-effluent-TP-quanlity" style="flex: 1;"></div>
+                </div>
+            </div>
+        </div>
+
+        <div class="right-col">
+            <div class="panel">
+                <div class="panel-title">污泥性质预测</div>
+                <div class="chart-box" id="chart-sludge-quanlity"></div>
+            </div>
+            <div class="panel">
+                <div class="panel-title">长期运行趋势</div>
+                <div class="chart-box" id="chart-longterm"></div>
+            </div>
+            <div class="panel">
+                <div class="panel-title">建议调整参数 <span style="font-size:12px;color:#888;margin-left:auto;">第1312环参数推荐</span></div>
+                <table>
+                    <tr><th>名称</th><th>当前值</th><th>推荐值</th><th>推荐范围</th></tr>
+                    <tr><td>溶解氧(Do)</td><td>5.42</td><td>6.16</td><td>5.65 ~ 7.75</td></tr>
+                    <tr><td>过流速度(mm/min)</td><td>12.35</td><td>24.8</td><td>19 ~ 31</td></tr>
+                    <tr><td>污泥回流流量(mm/min)</td><td>12.35</td><td>24.8</td><td>19 ~ 31</td></tr>
+                    <tr><td>沉淀池液位(bar)</td><td>0.8</td><td>0.12</td><td>0 ~ 0.2</td></tr>
+                </table>
+            </div>
+        </div>
+
+    </div>
+
+    <script>
+    // 配置通用的图表文本颜色
+    const textColor = '#6db1c7';
+    
+    // // 1. 进水水质chart-influent-quanlity
+    // var influent_quanlity_Chart = echarts.init(document.getElementById('chart-influent-quanlity'));
+    // influent_quanlity_Chart.setOption({
+    //     grid: { top: 40, right: 45, bottom: 20, left: 45 }, // 微调边距给标题留空间
+    //     tooltip: { trigger: 'axis', axisPointer: { type: 'cross' } }, // ★ 添加鼠标悬浮提示
+    //     xAxis: { 
+    //         type: 'category', 
+    //         name: '时间\n(day)', // ★ 横轴标题
+    //         nameTextStyle: { color: textColor },
+    //         data: ['4-2', '4-3', '4-4', '4-5', '4-6', '4-7', '4-8'], 
+    //         axisLabel: { color: textColor } 
+    //     },
+    //     yAxis: { 
+    //         type: 'value', 
+    //         name: '浓度(mg/L)', // ★ 纵轴标题
+    //         nameTextStyle: { color: textColor },
+    //         axisLabel: { color: textColor }, 
+    //         splitLine: { lineStyle: { color: '#0a4b6d' } } 
+    //     },
+    //     series: [
+    //         { name: '总氮', type: 'line', data: [36.31, 19.20, 27.47, 24.55, 32.68, 32.10, 30.86 ], itemStyle: { color: '#ffeb3b' } },
+    //         { name: '亚硝氮', type: 'line', data: [0.066, 0.038, 0.022, 0.058, 0.055, 0.060], itemStyle: { color: '#00ffff' } },
+    //         { name: '硝氮', type: 'line', data: [0.200, 0.156, 0.099, -0.149, 0.935, -0.022, 0.096], itemStyle: { color: '#00ffff' } },
+    //         { name: '总磷', type: 'line', data: [9.16, 15.72, 3.04, 2.78, 2.86, 3.39, 8.09 ], itemStyle: { color: '#ffeb3b' } },   
+    //         { type: 'line', markLine: { data: [{ yAxis: 12, name: '总氮报警值' }], itemStyle: { color: 'red' } } },
+    //         { type: 'line', markLine: { data: [{ yAxis: 20, name: '总磷报警值' }], itemStyle: { color: 'orange' } } }            
+    //     ]
+    // });
+
+    // 1. 进水水质chart-influent-quanlity
+    var influent_quanlity_Chart = echarts.init(document.getElementById('chart-influent-quanlity'));
+    influent_quanlity_Chart.setOption({
+        grid: { top: 40, right: 65, bottom: 25, left: 40 }, // 稍微加大了 bottom，给 X 轴标题留空间
+        tooltip: { trigger: 'axis', axisPointer: { type: 'cross' } },
+        
+        // ★ 调整图例大小
+        legend: { 
+            data: ['总氮', '总磷', '亚硝氮', '硝氮'], 
+            top: 0,
+            itemWidth: 20,  // 图例色块宽度（默认是 25）
+            itemHeight: 10, // 图例色块高度（默认是 14）
+            textStyle: { 
+                color: textColor, 
+                fontSize: 10 // 图例文字大小
+            } 
+        },
+        
+        xAxis: { 
+            type: 'category', 
+            name: '时间\n(day)', 
+            nameTextStyle: { color: textColor },
+            nameGap: 35, // ★ 调整 X 轴标题与坐标轴的距离，防止与刻度重叠
+            data: ['04-02', '04-03', '04-04', '04-05', '04-06', '04-07', '04-08'], 
+            axisLabel: { 
+                color: textColor,
+                margin: 10 // ★ 调整刻度数字与坐标轴的距离
+            } 
+        },
+        
+        yAxis: [
+            { 
+                // 左侧 Y 轴 (Index: 0)
+                type: 'value', 
+                name: 'TN/TP\n(mg/L)', 
+                position: 'left',
+                nameTextStyle: { color: textColor },
+                nameGap: 12, // ★ 调整左 Y 轴标题距离
+                axisLabel: { color: textColor }, 
+                splitLine: { lineStyle: { color: '#0a4b6d' } } 
+            },
+            { 
+                // 右侧 Y 轴 (Index: 1)
+                type: 'value', 
+                name: '亚硝/硝氮\n(mg/L)', 
+                position: 'right',
+                min: -0.3,
+                max: 2.4, // ★ 强制设置右侧 Y 轴的最大值（把刻度压低）
+                nameTextStyle: { color: textColor },
+                nameGap: 12, // ★ 调整右 Y 轴标题距离
+                axisLabel: { color: textColor }, 
+                splitLine: { show: false } 
+            }
+        ],
+        
+        series: [
+            // 总氮、总磷使用左轴 (yAxisIndex: 0)
+            { name: '总氮', type: 'line', yAxisIndex: 0, data: [36.31, 22.20, 27.47, 24.55, 32.68, 32.10, 30.86 ], itemStyle: { color: '#ffeb3b' } },
+            { name: '总磷', type: 'line', yAxisIndex: 0, data: [9.16, 10.72, 3.04, 2.78, 2.86, 3.39, 8.09 ], itemStyle: { color: '#ff9800' } }, 
+            
+            // 亚硝氮、硝氮使用右轴 (yAxisIndex: 1)
+            { name: '亚硝氮', type: 'line', yAxisIndex: 1, data: [0.066, 0.038, 0.022, 0.058, 0.055, 0.060, 0.051], itemStyle: { color: '#00ffff' } },
+            { name: '硝氮', type: 'line', yAxisIndex: 1, data: [0.200, 0.156, 0.099, -0.149, 0.335, -0.022, 0.096], itemStyle: { color: '#00e676' } }, 
+            
+            // 报警线
+            { type: 'line', markLine: { data: [{ yAxis: 12, name: '总氮报警值' }], itemStyle: { color: 'red' } } },
+            { type: 'line', markLine: { data: [{ yAxis: 20, name: '总磷报警值' }], itemStyle: { color: 'orange' } } }            
+        ]
+    });
+
+    // 2.水质预测chart-shortterm-TN
+    var predict_shortterm_TN_Chart = echarts.init(document.getElementById('chart-shortterm-TN'));
+    predict_shortterm_TN_Chart.setOption({
+        grid: { top: 40, right: 45, bottom: 30, left: 45 }, // 微调边距给标题留空间
+        tooltip: { trigger: 'axis', axisPointer: { type: 'cross' } }, // ★ 添加鼠标悬浮提示
+        xAxis: { 
+            type: 'category', 
+            name: '时间\n(day)', // ★ 横轴标题
+            nameTextStyle: { color: textColor },
+            data: ['03-28','03-29','03-30','03-31','04-01', '04-02', '04-03', '04-04', '04-05', '04-06', '04-07', '04-08', '04-09', '04-10', '04-11'], 
+            axisLabel: { 
+                color: textColor, 
+                rotate: 30,      // ★ 标签倾斜30度，防止重叠
+                fontSize: 10     // 稍微调小字号也可以提供更多空间
+            } 
+
+        },
+        yAxis: { 
+            type: 'value', 
+            name: '浓度(mg/L)', // ★ 纵轴标题
+            nameTextStyle: { color: textColor },
+            axisLabel: { color: textColor }, 
+            splitLine: { lineStyle: { color: '#0a4b6d' } } 
+        },
+        series: [
+            { 
+            name:'实测值', 
+            type: 'bar', 
+            data: [0.46, 0.52, 0.56, 0.41, 0.48, 0.55, 0.58, 0.48, 0.52, 0.43, 0.48, 0.50 ],
+            barWidth: '10px', 
+            itemStyle: { color: new echarts.graphic.LinearGradient(0, 0, 0, 1, [{offset: 0, color: '#00ffff'}, {offset: 1, color: '#0055ff'}]) }
+            },
+            { 
+            name: '预测值', 
+            type: 'line', 
+            data: [0.55, 0.58, 0.54, 0.50, 0.46, 0.53, 0.52, 0.58, 0.49, 0.52, 0.48, 0.40, 0.55, 0.50, 0.45 ], 
+            itemStyle: { color: '#ffeb3b' } 
+            },
+            { type: 'line', markLine: { data: [{ yAxis: 2, name: '出水总氮报警值' }], itemStyle: { color: 'red' } } }
+        ]
+    });
+
+    // 3.水质预测chart-shortterm-TP
+    var predict_shortterm_TP_Chart = echarts.init(document.getElementById('chart-shortterm-TP'));
+    predict_shortterm_TP_Chart.setOption({
+        grid: { top: 40, right: 45, bottom: 30, left: 45 }, // 微调边距给标题留空间
+        tooltip: { trigger: 'axis', axisPointer: { type: 'cross' } }, // ★ 添加鼠标悬浮提示
+        xAxis: { 
+            type: 'category', 
+            name: '时间\n(day)', // ★ 横轴标题
+            nameTextStyle: { color: textColor },
+            data: ['03-28','03-29','03-30','03-31','04-01', '04-02', '04-03', '04-04', '04-05', '04-06', '04-07', '04-08', '04-09', '04-10', '04-11'], 
+            axisLabel: { 
+                color: textColor, 
+                rotate: 30,      // ★ 标签倾斜30度，防止重叠
+                fontSize: 10     // 稍微调小字号也可以提供更多空间
+            } 
+
+        },
+        yAxis: { 
+            type: 'value', 
+            name: '浓度(mg/L)', // ★ 纵轴标题
+            nameTextStyle: { color: textColor },
+            axisLabel: { color: textColor }, 
+            splitLine: { lineStyle: { color: '#0a4b6d' } } 
+        },
+        series: [
+            { 
+            name:'实测值', 
+            type: 'bar', 
+            data: [0.23, 0.20, 0.18, 0.15, 0.18, 0.10, 0.09, 0.15, 0.18, 0.16, 0.25, 0.20 ],
+            barWidth: '10px', 
+            itemStyle: { color: new echarts.graphic.LinearGradient(0, 0, 0, 1, [{offset: 0, color: '#00ffff'}, {offset: 1, color: '#0055ff'}]) }
+            },
+            { 
+            name: '预测值', 
+            type: 'line', 
+            data: [0.22, 0.20, 0.15, 0.21, 0.18, 0.17, 0.15, 0.09, 0.20, 0.15, 0.20, 0.20, 0.15, 0.20, 0.16 ], 
+            itemStyle: { color: '#ffeb3b' } 
+            },
+            { type: 'line', markLine: { data: [{ yAxis: 2, name: '出水总氮报警值' }], itemStyle: { color: 'red' } } }
+        ]
+    });
+
+
+    // 4. 污泥性质预测图chart-sludge-quanlity
+    var sludge_quanlity_Chart = echarts.init(document.getElementById('chart-sludge-quanlity'));
+    sludge_quanlity_Chart.setOption({
+        grid: { top: 40, right: 45, bottom: 20, left: 45 },
+        tooltip: { 
+            trigger: 'axis',
+            axisPointer: { type: 'cross', label: { backgroundColor: '#0a4b6d' } } // ★ 增强高科技十字准星提示
+        }, 
+        xAxis: { 
+            type: 'category', 
+            name: '时间\n(day)', 
+            nameTextStyle: { color: textColor },
+            data: ['03-05', '03-12', '03-19', '03-26', '04-02', '04-09' ], 
+            axisLabel: { color: textColor } 
+        },
+        yAxis: { 
+            type: 'value', 
+            name: 'MLSS(mg/L)', // ★ 假设污泥浓度单位为 g/L，可按需修改
+            nameTextStyle: { color: textColor },
+            axisLabel: { color: textColor }, 
+            splitLine: { lineStyle: { color: '#0a4b6d' } } 
+        },
+        series: [{ 
+            name:'实测值', 
+            type: 'bar', 
+            data: [3142.22, 3375.56, 3531.11, 3866.67, 4091.11 ],
+            barWidth: '10px', 
+            itemStyle: { color: new echarts.graphic.LinearGradient(0, 0, 0, 1, [{offset: 0, color: '#00ffff'}, {offset: 1, color: '#0055ff'}]) }
+        },
+            { name: '预测值', type: 'line', data: [2980.33, 3255.15, 3550.00, 3947.56, 3950.52, 3900.87 ], itemStyle: { color: '#ffeb3b' } },
+            { type: 'line', markLine: { data: [{ yAxis: 2500, name: '报警值' }], itemStyle: { color: 'red' } } }
+        ]
+    });
+
+    // 5. 长期运行趋势chart-longterm
+    var longterm_Chart = echarts.init(document.getElementById('chart-longterm'));
+    longterm_Chart.setOption({
+        // grid: { top: 40, right: 40, bottom: 20, left: 40 },
+        // tooltip: { trigger: 'axis', axisPointer: { type: 'shadow' } },
+        // xAxis: { 
+        //     type: 'category', 
+        //     name: '时间', 
+        //     nameTextStyle: { color: textColor },
+        //     data: ['1 week', '2 week', '3 week', '4 week'], 
+        //     axisLabel: { color: textColor } 
+        // },
+        // yAxis: { 
+        //     type: 'value', 
+        //     name: '天数(d)', 
+        //     nameTextStyle: { color: textColor },
+        //     axisLabel: { color: textColor }, 
+        //     splitLine: { lineStyle: { color: '#0a4b6d' } } 
+        // },
+    //     series: [{
+    //         name: '运行数据',
+    //         data: [300, 278, 274, 267],
+    //         type: 'bar',
+    //         barWidth: '10px',
+    //         itemStyle: { color: new echarts.graphic.LinearGradient(0, 0, 0, 1, [{offset: 0, color: '#00ffff'}, {offset: 1, color: '#0055ff'}]) }
+    //     }]
+    // });
+
+        grid: { top: 40, right: 65, bottom: 25, left: 40 }, // 稍微加大了 bottom，给 X 轴标题留空间
+        tooltip: { trigger: 'axis', axisPointer: { type: 'cross' } },
+        
+        // ★ 调整图例大小
+        legend: { 
+            data: ['总氮', '总磷', 'MLSS'], 
+            top: 0,
+            itemWidth: 20,  // 图例色块宽度（默认是 25）
+            itemHeight: 10, // 图例色块高度（默认是 14）
+            textStyle: { 
+                color: textColor, 
+                fontSize: 10 // 图例文字大小
+            } 
+        },
+        
+        xAxis: { 
+            type: 'category', 
+            name: '时间', 
+            nameTextStyle: { color: textColor },
+            nameGap: 35, // ★ 调整 X 轴标题与坐标轴的距离，防止与刻度重叠
+            data: ['1 week', '2 week', '3 week', '4 week'], 
+            axisLabel: { 
+                color: textColor,
+                margin: 10 // ★ 调整刻度数字与坐标轴的距离
+            } 
+        },
+        
+        yAxis: [
+            { 
+                // 左侧 Y 轴 (Index: 0)
+                type: 'value', 
+                name: 'TN/TP\n(mg/L)', 
+                position: 'left',
+                nameTextStyle: { color: textColor },
+                nameGap: 12, // ★ 调整左 Y 轴标题距离
+                axisLabel: { color: textColor }, 
+                splitLine: { lineStyle: { color: '#0a4b6d' } } 
+            },
+            { 
+                // 右侧 Y 轴 (Index: 1)
+                type: 'value', 
+                name: 'MLSS\n(mg/L)', 
+                position: 'right',
+                min: -0.3,
+                max: 5000, // ★ 强制设置右侧 Y 轴的最大值（把刻度压低）
+                nameTextStyle: { color: textColor },
+                nameGap: 12, // ★ 调整右 Y 轴标题距离
+                axisLabel: { color: textColor }, 
+                splitLine: { show: false } 
+            }
+        ],
+        
+        series: [
+            // 总氮、总磷使用左轴 (yAxisIndex: 0)
+            { name: '总氮', type: 'line', yAxisIndex: 0, data: [36.31, 22.20, 27.47, 24.55 ], itemStyle: { color: '#ffeb3b' } },
+            { name: '总磷', type: 'line', yAxisIndex: 0, data: [9.16, 10.72, 3.04, 2.78 ], itemStyle: { color: '#ff9800' } }, 
+            
+            // // 亚硝氮、硝氮使用右轴 (yAxisIndex: 1)
+            // { name: '亚硝氮', type: 'line', yAxisIndex: 1, data: [0.066, 0.038, 0.022, 0.058, 0.055, 0.060, 0.051], itemStyle: { color: '#00ffff' } },
+            // { name: '硝氮', type: 'line', yAxisIndex: 1, data: [0.200, 0.156, 0.099, -0.149, 0.335, -0.022, 0.096], itemStyle: { color: '#00e676' } }, 
+            
+            // 报警线
+            { type: 'line', markLine: { data: [{ yAxis: 12, name: '总氮报警值' }], itemStyle: { color: 'red' } } },
+            { type: 'line', markLine: { data: [{ yAxis: 20, name: '总磷报警值' }], itemStyle: { color: 'orange' } } },             
+            
+            {
+            name: 'MLSS',
+            data: [3915.22, 4025.23, 4099.51, 4150.21],
+            type: 'bar',
+            barWidth: '10px',
+            yAxisIndex: 1 ,
+            itemStyle: { color: new echarts.graphic.LinearGradient(0, 0, 0, 1, [{offset: 0, color: '#00ffff'}, {offset: 1, color: '#0055ff'}]) }
+            }
+        ]
+    });
+
+
+
+    // 6. 各池末端水质预测图表 - TN
+    var predict_effluent_TN_Chart = echarts.init(document.getElementById('chart-effluent-TN-quanlity'));
+    predict_effluent_TN_Chart.setOption({
+        grid: { top: 40, right: 55, bottom: 25, left: 55 },
+        tooltip: { trigger: 'axis', axisPointer: { type: 'shadow' } }, // ★ 悬浮提示
+        xAxis: { 
+            type: 'category', 
+            name: '工艺段', 
+            nameTextStyle: { color: textColor },
+            data: ['Ana1', 'Ana2', 'Ana3', 'Aer1', 'Aer2', 'Aer3', 'Ano1', 'Ano2', 'Ano3', 'Sedi'], 
+            axisLabel: { 
+                color: textColor, 
+                interval: 0,    // ★ 强制显示所有标签，不隔行隐藏
+                rotate: 30,      // ★ 标签倾斜30度，防止重叠
+                fontSize: 10     // 稍微调小字号也可以提供更多空间
+            } 
+        },
+        yAxis: { 
+            type: 'value', 
+            name: 'TN浓度(mg/L)', 
+            nameTextStyle: { color: textColor },
+            axisLabel: { color: textColor }, 
+            splitLine: { lineStyle: { color: '#0a4b6d' } } 
+        },
+        series: [
+            {
+                name: '实测值',
+                data: [4.12, 4.05, 2.19, 2.16, 2.03, 1.69, 0.47, 0.91, 0.75, 3.69],
+                type: 'bar',
+                barWidth: '10px',
+                itemStyle: { color: new echarts.graphic.LinearGradient(0, 0, 0, 1, [{offset: 0, color: '#00ffff'}, {offset: 1, color: '#0055ff'}]) },
+                z: 3 // 确保柱子在阴影上方
+            }, 
+            { 
+                name: '预测值', 
+                type: 'line', 
+                data: [4.10, 4.02, 2.20, 2.16, 2.05, 1.70, 0.43, 0.89, 0.75, 3.30], 
+                itemStyle: { color: '#ffeb3b' },
+                z: 4 
+            },
+            // ★ 置信区间（使用堆叠透明阴影带实现）
+            {
+                name: '置信下界', // 占位用的下界（不可见）
+                type: 'line',
+                data: [3.90, 3.82, 2.00, 1.96, 1.85, 1.50, 0.25, 0.65, 0.50, 3.05], // 模拟下界数据
+                lineStyle: { opacity: 0 },
+                itemStyle: { opacity: 0 },
+                stack: 'tn-confidence-band',
+                symbol: 'none',
+                tooltip: { show: false } // 在 tooltip 中隐藏此辅助线
+            },
+            {
+                name: '置信区间', // 实际显示的半透明带宽
+                type: 'line',
+                data: [0.6, 0.4, 0.5, 0.6, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5], // 带宽（上界减去下界的差值）
+                lineStyle: { opacity: 0 },
+                areaStyle: { color: 'rgba(0, 255, 255, 0.15)' }, // 浅蓝色半透明填充
+                stack: 'tn-confidence-band',
+                symbol: 'none'
+            }
+        ]
+    });
+
+    // 7. 各池末端水质预测图表 - TP
+    var predict_effluent_TP_Chart = echarts.init(document.getElementById('chart-effluent-TP-quanlity'));
+    predict_effluent_TP_Chart.setOption({
+        grid: { top: 40, right: 55, bottom: 25, left: 55 },
+        tooltip: { trigger: 'axis', axisPointer: { type: 'shadow' } }, // ★ 悬浮提示
+        xAxis: { 
+            type: 'category', 
+            name: '工艺段', 
+            nameTextStyle: { color: textColor },
+            data: ['Ana1', 'Ana2', 'Ana3', 'Aer1', 'Aer2', 'Aer3', 'Ano1', 'Ano2', 'Ano3', 'Sedi'], 
+            axisLabel: { 
+                color: textColor, 
+                interval: 0,    // ★ 强制显示所有标签，不隔行隐藏
+                rotate: 30,      // ★ 标签倾斜30度，防止重叠
+                fontSize: 10     // 稍微调小字号也可以提供更多空间
+            } 
+        },
+        yAxis: { 
+            type: 'value', 
+            name: 'TP浓度(mg/L)', 
+            nameTextStyle: { color: textColor },
+            axisLabel: { color: textColor }, 
+            splitLine: { lineStyle: { color: '#0a4b6d' } } 
+        },
+        series: [
+            {
+                name: '实测值',
+                data: [25.65, 40.07, 12.80, 0.09, 0.09, 0.16, 0.13, 1.35, 3.02, 0.22],
+                type: 'bar',
+                barWidth: '10px',
+                itemStyle: { color: new echarts.graphic.LinearGradient(0, 0, 0, 1, [{offset: 0, color: '#00ffff'}, {offset: 1, color: '#0055ff'}]) },
+                z: 3
+            }, 
+            { 
+                name: '预测值', 
+                type: 'line', 
+                data: [25.60, 40.00, 12.50, 0.12, 0.12, 0.17, 0.15, 1.30, 2.80, 0.22], 
+                itemStyle: { color: '#ffeb3b' },
+                z: 4
+            },
+            // ★ 置信区间
+            {
+                name: '置信下界',
+                type: 'line',
+                data: [20.6, 36.5, 10.5, 0, 0, 0, 0, 0.5, 1.8, 0], // 模拟下界
+                lineStyle: { opacity: 0 },
+                itemStyle: { opacity: 0 },
+                stack: 'tp-confidence-band',
+                symbol: 'none',
+                tooltip: { show: false }
+            },
+            {
+                name: '置信区间',
+                type: 'line',
+                data: [8.0, 8.0, 8.0, 0.6, 0.6, 0.8, 0.6, 1.6, 3.2, 1.0], // 模拟带宽
+                lineStyle: { opacity: 0 },
+                areaStyle: { color: 'rgba(0, 255, 255, 0.15)' },
+                stack: 'tp-confidence-band',
+                symbol: 'none'
+            }
+        ]
+    });
+
+    // 窗口大小变化时自适应图表
+    window.addEventListener('resize', function() {
+        longterm_Chart.resize();
+        sludge_quanlity_Chart.resize();
+        predict_effluent_TN_Chart.resize();
+        predict_effluent_TP_Chart.resize();
+        influent_quanlity_Chart.resize();
+        predict_shortterm_TN_Chart.resize();
+        predict_shortterm_TP_Chart.resize();
+    });
+    </script>
+</body>
+</html>
